@@ -3,6 +3,11 @@
 High-performance subdomain prober written in Rust. Like httpx, but faster.
 
 ## Features
+<h1 align="center">
+  <img src="https://github.com/user-attachments/assets/f0f96c47-76ee-4c29-834e-9792858eb123" alt="httpx" width="700px">
+  <br>
+</h1>
+
 - **Simultaneous HTTP/HTTPS probing** - Fire both requests at once, wait for one timeout not two
 - **Random User-Agent rotation** - Realistic browser UAs on every request (no flag needed)
 - **Colored terminal output** - Status codes, content-length, titles, response times color-coded
@@ -28,7 +33,6 @@ Real-world test on 38,426 subdomains:
 git clone --depth 1 https://github.com/rix4uni/vyre.git
 cd vyre
 cargo build --release
-# Binary: target/release/vyre
 sudo cp target/release/vyre /usr/local/bin/
 ```
 
@@ -50,7 +54,7 @@ sudo cp target/release/vyre /usr/local/bin/
 
 ## Example
 ```console
-$ echo "krazeplanet.com" | vyre --status-code --title --content-length --response-time
+echo "krazeplanet.com" | vyre --status-code --title --content-length --response-time
 
  _   __ __  __ _____ ___
 | | / // / / // ___// _ \
@@ -62,8 +66,10 @@ Use with caution. You are responsible for your actions.
 Developers assume no liability and are not responsible for any misuse or damage.
 
 https://krazeplanet.com [200] [3416] [KrazePlanet | Offensive Security & Pentesting Experts] [38ms]
+```
 
-$ echo "krazeplanet.com" | vyre --stats
+```console
+echo "krazeplanet.com" | vyre --stats
 https://krazeplanet.com
 [stats] input: 1  kept: 1  removed: 0
 ```
