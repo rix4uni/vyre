@@ -114,23 +114,8 @@ Matchers keep a result if **any** given matcher matches. Filters drop a result i
 
 
 ## Example
-```console
-echo "krazeplanet.com" | vyre --status-code --title --content-length --response-time
+<img width="1003" height="247" alt="image" src="https://github.com/user-attachments/assets/efeb61b3-6e7c-4dc6-b719-54212d7afa8e" />
 
- _   __ __  __ _____ ___
-| | / // / / // ___// _ \
-| |/ // /_/ // /   /  __/
-|___/ \__, //_/    \___/      v0.2.0
-     /____/
-
-https://krazeplanet.com [200] [3416] [KrazePlanet | Offensive Security & Pentesting Experts] [38ms]
-```
-
-```console
-echo "krazeplanet.com" | vyre --stats
-https://krazeplanet.com
-[stats] input: 1  kept: 1  removed: 0
-```
 
 ## Usage Examples
 ```console
