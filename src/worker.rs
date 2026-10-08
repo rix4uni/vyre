@@ -10,14 +10,33 @@ use crate::cli::Args;
 use crate::output::{format_result, DisplayConfig};
 use crate::prober::{probe_domain, ProbeConfig};
 
+/// -fr follows everything, -fhr only redirects that stay on the original host.
+fn redirect_policy(args: &Args) -> reqwest::redirect::Policy {
+    if !args.follow_redirects && !args.follow_host_redirects {
+        return reqwest::redirect::Policy::none();
+    }
+    let max = args.max_redirects;
+    let host_only = args.follow_host_redirects && !args.follow_redirects;
+    reqwest::redirect::Policy::custom(move |attempt| {
+        let too_many = attempt.previous().len() >= max;
+        let same_host =
+            attempt.url().host_str() == attempt.previous().first().and_then(|u| u.host_str());
+        if too_many || (host_only && !same_host) {
+            attempt.stop()
+        } else {
+            attempt.follow()
+        }
+    })
+}
+
 /// Build the shared reqwest client with all performance settings applied.
 fn build_client(args: &Args) -> Result<reqwest::Client> {
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(args.timeout))
         // Accept self-signed, expired, and mismatched TLS certs.
         .danger_accept_invalid_certs(true)
-        // Never follow redirects — report raw status codes.
-        .redirect(reqwest::redirect::Policy::none())
+        // Redirects are reported raw unless --follow-redirects / --follow-host-redirects.
+        .redirect(redirect_policy(args))
         // Each subdomain is unique; idle connections waste memory.
         .pool_max_idle_per_host(0)
         // Disable Nagle — send packets immediately.
@@ -42,10 +61,37 @@ pub async fn run(args: Arc<Args>) -> Result<()> {
     let cfg = Arc::new(ProbeConfig {
         fetch_title: args.title,
         fetch_content_length: args.content_length,
+        fetch_content_type: args.content_type,
+        fetch_location: args.location,
+        fetch_favicon: args.favicon,
+        fetch_line_count: args.line_count,
+        fetch_word_count: args.word_count,
+        fetch_server: args.server,
+        fetch_ip: args.ip,
+        matchers: crate::matcher::Matchers::from_matchers(&args)?,
+        filters: crate::matcher::Matchers::from_filters(&args)?,
+        random_agent: args.random_agent,
+        retries: args.retries,
+        pacer: args.delay.map(crate::prober::Pacer::new),
+        resolver: if args.cname {
+            Some(
+                hickory_resolver::TokioAsyncResolver::tokio_from_system_conf().unwrap_or_else(
+                    |_| {
+                        hickory_resolver::TokioAsyncResolver::tokio(
+                            hickory_resolver::config::ResolverConfig::default(),
+                            hickory_resolver::config::ResolverOpts::default(),
+                        )
+                    },
+                ),
+            )
+        } else {
+            None
+        },
     });
     let disp = Arc::new(DisplayConfig {
         show_status: args.show_status,
         show_rt:     args.show_rt,
+        color:       !args.no_color,
     });
 
     let domains_read = Arc::new(AtomicU64::new(0));
