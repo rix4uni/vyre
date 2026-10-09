@@ -175,10 +175,6 @@ pub struct Args {
     #[arg(help_heading = "FILTERS (drop a result if ANY given filter matches)", long = "filter-response-time", value_parser = crate::matcher::parse_time_cond, allow_hyphen_values = true)]
     pub filter_response_time: Option<crate::matcher::TimeCond>,
 
-    /// Use a random User-Agent for each request (default: a fixed Chrome one)
-    #[arg(help_heading = "REQUESTS", long = "random-agent")]
-    pub random_agent: bool,
-
     /// Follow HTTP redirects
     #[arg(help_heading = "REQUESTS", long = "follow-redirects")]
     pub follow_redirects: bool,
@@ -214,11 +210,16 @@ pub struct Args {
     /// Print scan statistics (input / alive / dead) to stderr after the scan
     #[arg(help_heading = "SCAN OPTIONS", long = "stats")]
     pub stats: bool,
+
+    /// Sort results by content-length, highest first (buffers all output)
+    #[arg(help_heading = "OUTPUT FIELDS (each one adds a column to the result line)", long = "best-result")]
+    pub best_result: bool,
 }
 
 /// Single-dash multi-letter shorthands. clap only supports one-character short
 /// flags, so these are rewritten to their long form before parsing.
 const SHORTHANDS: &[(&str, &str)] = &[
+    ("-best", "--best-result"),
     ("-cl", "--content-length"),
     ("-ct", "--content-type"),
     ("-sc", "--status-code"),
@@ -268,6 +269,7 @@ PROBES:
    --server                display server name
    --ip                    display host ip
    --cname                 display host cname
+   -best, --best-result    sort output by content-length, highest first
 
 MATCHERS:
    -mc, --match-code string             match response with specified status code (-mc 200,302)
@@ -302,7 +304,6 @@ OUTPUT:
    --output string   file to write output results
 
 CONFIGURATIONS:
-   --random-agent                  enable Random User-Agent to use (default false)
    -fr, --follow-redirects         follow http redirects
    -maxr, --max-redirects int      max number of redirects to follow per host (default 10)
    -fhr, --follow-host-redirects   follow redirects on the same host

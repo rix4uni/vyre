@@ -9,7 +9,7 @@ High-performance subdomain prober written in Rust. Like httpx, but faster.
 </h1>
 
 - **Simultaneous HTTP/HTTPS probing** - Fire both requests at once, wait for one timeout not two
-- **Random User-Agent rotation** - Realistic browser UAs on every request with `--random-agent`
+- **Random User-Agent rotation** - Realistic browser UAs on every request (always on)
 - **Colored terminal output** - Status codes, content-length, titles, response times color-coded
 - **Accurate Content-Length** - Measures decompressed body size with gzip support
 - **Title extraction** - Grabs page `<title>` from first 8KB (minimizes bandwidth)
@@ -59,6 +59,7 @@ PROBES:
    --server                display server name
    --ip                    display host ip
    --cname                 display host cname
+   -best, --best-result    sort output by content-length, highest first
 
 MATCHERS:
    -mc, --match-code string             match response with specified status code (-mc 200,302)
@@ -93,7 +94,6 @@ OUTPUT:
    --output string   file to write output results
 
 CONFIGURATIONS:
-   --random-agent                  enable Random User-Agent to use (default false)
    -fr, --follow-redirects         follow http redirects
    -maxr, --max-redirects int      max number of redirects to follow per host (default 10)
    -fhr, --follow-host-redirects   follow redirects on the same host

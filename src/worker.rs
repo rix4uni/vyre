@@ -60,7 +60,7 @@ pub async fn run(args: Arc<Args>) -> Result<()> {
     let client = Arc::new(build_client(&args)?);
     let cfg = Arc::new(ProbeConfig {
         fetch_title: args.title,
-        fetch_content_length: args.content_length,
+        fetch_content_length: args.content_length || args.best_result,
         fetch_content_type: args.content_type,
         fetch_location: args.location,
         fetch_favicon: args.favicon,
@@ -70,7 +70,6 @@ pub async fn run(args: Arc<Args>) -> Result<()> {
         fetch_ip: args.ip,
         matchers: crate::matcher::Matchers::from_matchers(&args)?,
         filters: crate::matcher::Matchers::from_filters(&args)?,
-        random_agent: args.random_agent,
         retries: args.retries,
         pacer: args.delay.map(crate::prober::Pacer::new),
         resolver: if args.cname {
@@ -134,6 +133,16 @@ pub async fn run(args: Arc<Args>) -> Result<()> {
     let concurrency = args.concurrency;
     let only = args.only.clone();
 
+    // With --best-result we cannot stream: every result is buffered so it can be
+    // sorted by content-length before anything is printed. Without the flag the
+    // collector stays None and results stream out live as before.
+    let collector: Option<std::sync::Arc<std::sync::Mutex<Vec<crate::prober::ProbeResult>>>> =
+        if args.best_result {
+            Some(std::sync::Arc::new(std::sync::Mutex::new(Vec::new())))
+        } else {
+            None
+        };
+
     let domains_read_fm = domains_read.clone();
     lines_stream
         // Drop I/O errors and blank lines silently.
@@ -160,6 +169,7 @@ pub async fn run(args: Arc<Args>) -> Result<()> {
             let cfg = cfg.clone();
             let disp = disp.clone();
             let urls_alive = urls_alive.clone();
+            let collector = collector.clone();
 
             async move {
                 let results =
@@ -167,8 +177,14 @@ pub async fn run(args: Arc<Args>) -> Result<()> {
 
                 for result in results {
                     urls_alive.fetch_add(1, Ordering::Relaxed);
-                    // Ignore send errors — writer task may have exited early.
-                    let _ = tx.send(format_result(&result, &disp));
+                    match &collector {
+                        // Buffer for sorting; nothing is printed yet.
+                        Some(buf) => buf.lock().unwrap().push(result),
+                        // Ignore send errors — writer task may have exited early.
+                        None => {
+                            let _ = tx.send(format_result(&result, &disp));
+                        }
+                    }
                 }
             }
         })
@@ -176,6 +192,18 @@ pub async fn run(args: Arc<Args>) -> Result<()> {
         .buffer_unordered(concurrency)
         .for_each(|_| async {})
         .await;
+
+    // --best-result: sort the buffered results by content-length (highest first)
+    // and only now hand them to the writer. None content-lengths sort to the end.
+    if let Some(buf) = collector {
+        let mut results = std::sync::Arc::try_unwrap(buf)
+            .map(|m| m.into_inner().unwrap())
+            .unwrap_or_else(|arc| arc.lock().unwrap().clone());
+        results.sort_by(|a, b| b.content_length.cmp(&a.content_length));
+        for result in &results {
+            let _ = tx.send(format_result(result, &disp));
+        }
+    }
 
     // Drop our sender so the writer task knows there are no more results.
     drop(tx);

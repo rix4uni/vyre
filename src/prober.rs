@@ -21,7 +21,6 @@ pub struct ProbeConfig {
     pub resolver: Option<TokioAsyncResolver>,
     pub matchers: Matchers,
     pub filters: Matchers,
-    pub random_agent: bool,
     pub retries: u32,
     /// Present only when --delay is set.
     pub pacer: Option<Pacer>,
@@ -50,14 +49,9 @@ impl Pacer {
     }
 }
 
-const DEFAULT_USER_AGENT: &str = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
-
-fn user_agent(cfg: &ProbeConfig) -> String {
-    if cfg.random_agent {
-        fake_user_agent::get_rua().to_string()
-    } else {
-        DEFAULT_USER_AGENT.to_string()
-    }
+/// A fresh random browser User-Agent is used for every request.
+fn user_agent(_cfg: &ProbeConfig) -> String {
+    fake_user_agent::get_rua().to_string()
 }
 
 /// A successful probe response.
@@ -102,6 +96,13 @@ pub fn normalize_domain(input: &str) -> String {
 pub fn build_urls(domain: &str, ports: &[u16], only: Option<&str>) -> Vec<String> {
     let mut urls = Vec::with_capacity(ports.len() * 2);
 
+    // A port baked into the input host (e.g. "host:443") pins the real scheme:
+    // 443 is HTTPS-only and 80 is HTTP-only, so probing the other scheme just
+    // yields a bogus 400 ("plain HTTP request was sent to HTTPS port").
+    let embedded_port = domain
+        .rsplit_once(':')
+        .and_then(|(_, p)| p.parse::<u16>().ok());
+
     for &port in ports {
         // Skip the standard port for the opposite scheme — forcing HTTPS on port 80
         // (or HTTP on 443) causes the server to hang the handshake until timeout.
@@ -119,13 +120,28 @@ pub fn build_urls(domain: &str, ports: &[u16], only: Option<&str>) -> Vec<String
         };
 
         for &scheme in schemes {
+            // Skip HTTP against an embedded :443 host and HTTPS against :80.
+            if embedded_port == Some(443) && scheme == "http" {
+                continue;
+            }
+            if embedded_port == Some(80) && scheme == "https" {
+                continue;
+            }
             let is_standard =
                 (scheme == "http" && port == 80) || (scheme == "https" && port == 443);
-            let url = if is_standard {
+            let mut url = if is_standard {
                 format!("{}://{}", scheme, domain)
             } else {
                 format!("{}://{}:{}", scheme, domain, port)
             };
+            // Drop a default web port the input host carried (e.g. "host:443"):
+            // 443 and 80 are the HTTPS/HTTP defaults, so showing them is noise.
+            if let Some(trimmed) = url
+                .strip_suffix(":443")
+                .or_else(|| url.strip_suffix(":80"))
+            {
+                url = trimmed.to_string();
+            }
             urls.push(url);
         }
     }
