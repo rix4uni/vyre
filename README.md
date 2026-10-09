@@ -3,8 +3,9 @@
 High-performance subdomain prober written in Rust. Like httpx, but faster.
 
 ## Features
+
 <h1>
-  <img src="https://github.com/user-attachments/assets/f0f96c47-76ee-4c29-834e-9792858eb123" alt="httpx" width="700px">
+  <img src="https://github.com/user-attachments/assets/b8dfdc57-6426-4324-ba70-7687edd3edda" alt="httpx" width="700px">
   <br>
 </h1>
 
