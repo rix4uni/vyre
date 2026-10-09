@@ -119,38 +119,54 @@ Matchers keep a result if **any** given matcher matches. Filters drop a result i
 
 
 ## Usage Examples
+
+### Basic probe
 ```console
-# Basic probe (URL only output)
 echo "dell.com" | vyre
 cat subs.txt | vyre
+```
 
-# Full information like httpx (colored output)
+### Full information like httpx (colored output)
+```console
 cat subs.txt | vyre --status-code --title --content-length --response-time
+```
 
-# Fast scan with custom concurrency
+### Fast scan with custom concurrency
+```console
 cat subs.txt | vyre --concurrency 5000
+```
 
-# HTTPS only with all details
+### HTTPS only with all details
+```console
 cat subs.txt | vyre --only https --status-code --title --response-time
+```
 
-# Probe additional ports
+### Probe additional ports
+```console
 cat subs.txt | vyre --ports 80,443,8080,8443
+```
 
-# Save to file + show stats
+### Save to file + show stats
+```console
 cat subs.txt | vyre --output results.txt --stats
+```
 
-# Silent mode for scripting
-cat subs.txt | vyre --silent | tee results.txt
-
-# Only keep hosts answering 200/302 that contain "admin"
+### Only keep hosts answering 200/302 that contain "admin"
+```console
 cat subs.txt | vyre -sc -mc 200,302 -ms admin
+```
 
-# Hide forbidden / not-found / parked pages
+### Hide forbidden / not-found / parked pages
+```console
 cat subs.txt | vyre -sc -fc 403,404 -fpt parked
+```
 
-# Follow redirects, retry failures, throttle requests
+### Follow redirects, retry failures, throttle requests
+```console
 cat subs.txt | vyre -fr -maxr 5 --retries 2 --delay 200ms
+```
 
-# Pipe to other tools
-cat subs.txt | vyre -mc 200 | nuclei -t ~/nuclei-templates/exposures/
+### Pipe to other tools
+```console
+cat subs.txt | vyre -mc 200 | nuclei -t ~/nuclei-templates/http/cves/
 ```
